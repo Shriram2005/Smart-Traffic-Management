@@ -2,6 +2,9 @@
 
 An AI-powered, real-time traffic signal controller for a 4-way intersection. The system uses **YOLOv8** to detect vehicles in each lane, applies a score-based algorithm to decide which lane gets the green signal, and streams annotated video feeds to a live web dashboard.
 
+## Screenshot
+<img width="1919" height="1079" alt="project screenshot" src="https://github.com/user-attachments/assets/521fae0f-7f69-4c26-9732-50d18b3bce4f" />
+
 ## Features
 
 - **Per-lane vehicle detection** — independent YOLOv8 (nano) inference on 4 concurrent threads.
