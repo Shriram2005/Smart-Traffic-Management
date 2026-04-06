@@ -9,14 +9,16 @@ Provides:
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 from typing import TYPE_CHECKING
 
 import cv2
-from flask import Flask, Response, jsonify, render_template
+from flask import Flask, Response, jsonify, render_template, request
+from werkzeug.utils import secure_filename
 
-from utils.config import LANE_NAMES
+from utils.config import LANE_NAMES, LANE_IMAGES, SAMPLE_DIR
 
 if TYPE_CHECKING:
     from detection.lane_detector import LaneDetector
@@ -80,6 +82,37 @@ def status():
     if controller is None:
         return jsonify({"error": "Controller not initialised"}), 503
     return jsonify(controller.get_status())
+
+
+# ── Image Upload ──────────────────────────────────────────────────────
+
+@app.route("/upload/<lane_name>", methods=["POST"])
+def upload_image(lane_name: str):
+    """Handle image upload for a specific lane from the dashboard."""
+    if lane_name not in LANE_NAMES:
+        return jsonify({"error": "Lane not found"}), 404
+        
+    if "image" not in request.files:
+        return jsonify({"error": "No image part"}), 400
+        
+    file = request.files["image"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+        
+    if file:
+        filename = secure_filename(file.filename)
+        # Use timestamp to avoid caching and overwriting issues
+        safe_name = f"{lane_name}_{int(time.time())}_{filename}"
+        filepath = os.path.join(SAMPLE_DIR, safe_name)
+        
+        # Ensure sample dir exists
+        os.makedirs(SAMPLE_DIR, exist_ok=True)
+        file.save(filepath)
+        
+        # Update the dictionary in memory so detectors instantly pick it up
+        LANE_IMAGES[lane_name] = filepath
+        return jsonify({"success": True})
+    return jsonify({"error": "Unknown error"}), 500
 
 
 # ── Main page ─────────────────────────────────────────────────────────

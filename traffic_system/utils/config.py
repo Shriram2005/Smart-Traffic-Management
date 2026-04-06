@@ -38,8 +38,8 @@ BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAMPLE_DIR: str = os.path.join(BASE_DIR, "sample_inputs")
 
 LANE_IMAGES: dict[str, str | None] = {
-    "north": os.path.join(SAMPLE_DIR, "north.jpg"),
-    "south": os.path.join(SAMPLE_DIR, "south.jpg"),
-    "east":  os.path.join(SAMPLE_DIR, "east.jpg"),
-    "west":  os.path.join(SAMPLE_DIR, "west.jpg"),
+    "north": os.path.join(SAMPLE_DIR, "1.webp"),
+    "south": os.path.join(SAMPLE_DIR, "img2.webp"),
+    "east":  os.path.join(SAMPLE_DIR, "img3.jpeg"),
+    "west":  os.path.join(SAMPLE_DIR, "img3.webp"),
 }
