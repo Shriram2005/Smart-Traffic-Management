@@ -1,0 +1,47 @@
+# Python artefacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Database files (generated at runtime)
+*.db
+*.sqlite
+*.sqlite3
+
+# Q-table (RL model saved at runtime)
+q_table.npy
+
+# Dashboard snapshots (generated at runtime)
+traffic_dashboard*.png
+
+# Jupyter / IPython
+.ipynb_checkpoints/
+*.ipynb
+
+# Pytest cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
