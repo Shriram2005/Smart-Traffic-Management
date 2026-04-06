@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Traffic Management System — Dashboard</title>
+  <meta name="description" content="Real-time traffic monitoring and signal control dashboard for a 4-way intersection." />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #0b0e14;
+      --surface:   #151922;
+      --card:      #1a1f2b;
+      --border:    #252b3a;
+      --text:      #e4e8f1;
+      --dim:       #8891a5;
+      --green:     #22c55e;
+      --yellow:    #f59e0b;
+      --red:       #ef4444;
+      --accent:    #3b82f6;
+      --glow-g:    rgba(34,197,94,.25);
+      --glow-y:    rgba(245,158,11,.25);
+      --glow-r:    rgba(239,68,68,.25);
+    }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────── */
+    header {
+      display: flex; align-items: center; gap: 14px;
+      padding: 18px 28px;
+      background: linear-gradient(135deg, #111621, #181e2e);
+      border-bottom: 1px solid var(--border);
+    }
+    header .logo {
+      width: 38px; height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      display: grid; place-items: center;
+      font-weight: 700; font-size: 18px; color: #fff;
+    }
+    header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -.02em; }
+    header .badge {
+      margin-left: auto;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: .75rem; font-weight: 600;
+      background: rgba(34,197,94,.12);
+      color: var(--green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%     { opacity: .6; }
+    }
+
+    /* ── Emergency banner ─────────────────────────────────────────── */
+    #emergency-banner {
+      display: none;
+      padding: 12px 28px;
+      background: linear-gradient(90deg, rgba(239,68,68,.15), rgba(239,68,68,.05));
+      border-bottom: 2px solid var(--red);
+      color: var(--red);
+      font-weight: 700;
+      font-size: .95rem;
+      text-align: center;
+      animation: flashBanner 1s infinite;
+    }
+    @keyframes flashBanner {
+      0%,100% { background-color: rgba(239,68,68,.15); }
+      50%     { background-color: rgba(239,68,68,.3); }
+    }
+    #emergency-banner .icon { font-size: 1.1rem; margin-right: 6px; }
+
+    /* ── Layout container ─────────────────────────────────────────── */
+    .dashboard {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 20px;
+      padding: 20px 28px 28px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    /* ── Feed grid ────────────────────────────────────────────────── */
+    .feeds {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 14px;
+    }
+    .feed-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      position: relative;
+      transition: border-color .3s, box-shadow .3s;
+    }
+    .feed-card.active-green {
+      border-color: var(--green);
+      box-shadow: 0 0 24px var(--glow-g);
+    }
+    .feed-card .lane-tag {
+      position: absolute; top: 10px; left: 10px;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: .72rem; font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      background: rgba(0,0,0,.65);
+      backdrop-filter: blur(4px);
+      z-index: 2;
+    }
+    .feed-card .signal-dot {
+      position: absolute; top: 12px; right: 12px;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      z-index: 2;
+      transition: background .3s, box-shadow .3s;
+    }
+    .feed-card img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+      background: #111;
+    }
+
+    /* ── Sidebar ──────────────────────────────────────────────────── */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    .panel h2 {
+      font-size: .82rem; font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--dim);
+      margin-bottom: 14px;
+    }
+
+    /* ── Traffic lights ───────────────────────────────────────────── */
+    .lights-row {
+      display: flex; gap: 12px; justify-content: center;
+    }
+    .light-unit {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .light-unit span { font-size: .7rem; color: var(--dim); font-weight: 500; text-transform: uppercase; }
+    .light-stack {
+      display: flex; flex-direction: column; gap: 5px;
+      padding: 8px 6px;
+      background: #111;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .bulb {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: #222;
+      transition: background .3s, box-shadow .4s;
+    }
+    .bulb.on-red    { background: var(--red);    box-shadow: 0 0 10px var(--glow-r); }
+    .bulb.on-yellow { background: var(--yellow); box-shadow: 0 0 10px var(--glow-y); }
+    .bulb.on-green  { background: var(--green);  box-shadow: 0 0 10px var(--glow-g); }
+
+    /* ── Stats table ──────────────────────────────────────────────── */
+    .stats-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+    .stats-table th {
+      text-align: left; font-weight: 600; padding: 6px 8px;
+      color: var(--dim); border-bottom: 1px solid var(--border);
+    }
+    .stats-table td {
+      padding: 8px; border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .stats-table tr:last-child td { border-bottom: none; }
+    .signal-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: .72rem;
+      text-transform: uppercase;
+    }
+    .signal-badge.GREEN  { background: rgba(34,197,94,.15); color: var(--green); }
+    .signal-badge.YELLOW { background: rgba(245,158,11,.15); color: var(--yellow); }
+    .signal-badge.RED    { background: rgba(239,68,68,.12); color: var(--red); }
+
+    /* ── Chart ────────────────────────────────────────────────────── */
+    .chart-wrap { position: relative; height: 220px; }
+
+    /* ── Responsive ───────────────────────────────────────────────── */
+    @media (max-width: 960px) {
+      .dashboard { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ─────────────────────────────────────────────────── -->
+  <header>
+    <div class="logo">T</div>
+    <h1>Smart Traffic Control</h1>
+    <span class="badge" id="status-badge">● LIVE</span>
+  </header>
+
+  <!-- ── Emergency banner ───────────────────────────────────────── -->
+  <div id="emergency-banner">
+    <span class="icon">🚨</span>
+    EMERGENCY OVERRIDE ACTIVATED — <span id="emergency-lane-name">—</span>
+  </div>
+
+  <!-- ── Main Layout ────────────────────────────────────────────── -->
+  <div class="dashboard">
+
+    <!-- ── 2×2 Feed Grid ──────────────────────────────────────── -->
+    <div class="feeds">
+      <div class="feed-card" id="feed-north">
+        <span class="lane-tag">North</span>
+        <span class="signal-dot" id="dot-north"></span>
+        <img src="/feed/north" alt="North lane feed" />
+      </div>
+      <div class="feed-card" id="feed-south">
+        <span class="lane-tag">South</span>
+        <span class="signal-dot" id="dot-south"></span>
+        <img src="/feed/south" alt="South lane feed" />
+      </div>
+      <div class="feed-card" id="feed-east">
+        <span class="lane-tag">East</span>
+        <span class="signal-dot" id="dot-east"></span>
+        <img src="/feed/east" alt="East lane feed" />
+      </div>
+      <div class="feed-card" id="feed-west">
+        <span class="lane-tag">West</span>
+        <span class="signal-dot" id="dot-west"></span>
+        <img src="/feed/west" alt="West lane feed" />
+      </div>
+    </div>
+
+    <!-- ── Sidebar ────────────────────────────────────────────── -->
+    <div class="sidebar">
+
+      <!-- Traffic Lights -->
+      <div class="panel">
+        <h2>Signal Status</h2>
+        <div class="lights-row">
+          <div class="light-unit" id="light-north">
+            <div class="light-stack">
+              <div class="bulb" data-color="red"></div>
+              <div class="bulb" data-color="yellow"></div>
+              <div class="bulb" data-color="green"></div>
+            </div>
+            <span>North</span>
+          </div>
+          <div class="light-unit" id="light-south">
+            <div class="light-stack">
+              <div class="bulb" data-color="red"></div>
+              <div class="bulb" data-color="yellow"></div>
+              <div class="bulb" data-color="green"></div>
+            </div>
+            <span>South</span>
+          </div>
+          <div class="light-unit" id="light-east">
+            <div class="light-stack">
+              <div class="bulb" data-color="red"></div>
+              <div class="bulb" data-color="yellow"></div>
+              <div class="bulb" data-color="green"></div>
+            </div>
+            <span>East</span>
+          </div>
+          <div class="light-unit" id="light-west">
+            <div class="light-stack">
+              <div class="bulb" data-color="red"></div>
+              <div class="bulb" data-color="yellow"></div>
+              <div class="bulb" data-color="green"></div>
+            </div>
+            <span>West</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Table -->
+      <div class="panel">
+        <h2>Lane Statistics</h2>
+        <table class="stats-table">
+          <thead>
+            <tr><th>Lane</th><th>Count</th><th>Score</th><th>Wait</th><th>Signal</th></tr>
+          </thead>
+          <tbody id="stats-body">
+            <tr id="row-north"><td>North</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+            <tr id="row-south"><td>South</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+            <tr id="row-east"><td>East</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+            <tr id="row-west"><td>West</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Density Chart -->
+      <div class="panel" style="flex:1;">
+        <h2>Live Density</h2>
+        <div class="chart-wrap">
+          <canvas id="density-chart"></canvas>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── JavaScript ─────────────────────────────────────────────── -->
+  <script>
+    // ── Chart Setup ──────────────────────────────────────────────
+    const MAX_POINTS = 30;
+    const laneNames = ['north','south','east','west'];
+    const laneColors = {
+      north: '#3b82f6',
+      south: '#8b5cf6',
+      east:  '#f59e0b',
+      west:  '#22c55e'
+    };
+
+    const ctx = document.getElementById('density-chart').getContext('2d');
+    const chartData = {
+      labels: [],
+      datasets: laneNames.map(n => ({
+        label: n.charAt(0).toUpperCase() + n.slice(1),
+        data: [],
+        borderColor: laneColors[n],
+        backgroundColor: laneColors[n] + '22',
+        fill: true,
+        tension: .35,
+        pointRadius: 0,
+        borderWidth: 2,
+      }))
+    };
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: chartData,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 300 },
+        scales: {
+          x: { display: false },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(255,255,255,.06)' },
+            ticks: { color: '#666', font: { size: 10 } }
+          }
+        },
+        plugins: {
+          legend: {
+            labels: { color: '#888', boxWidth: 12, font: { size: 11 } }
+          }
+        }
+      }
+    });
+
+    let tickCount = 0;
+
+    // ── Status polling ───────────────────────────────────────────
+    async function poll() {
+      try {
+        const res = await fetch('/status');
+        const data = await res.json();
+        updateUI(data);
+      } catch (e) {
+        console.error('Poll error', e);
+      }
+    }
+
+    function updateUI(data) {
+      const lanes = data.lanes;
+
+      // Emergency banner
+      const banner = document.getElementById('emergency-banner');
+      if (data.emergency_active) {
+        banner.style.display = 'block';
+        document.getElementById('emergency-lane-name').textContent =
+          (data.emergency_lane || '').toUpperCase();
+      } else {
+        banner.style.display = 'none';
+      }
+
+      laneNames.forEach(name => {
+        const info = lanes[name];
+
+        // Table row
+        const row = document.getElementById('row-' + name);
+        const cells = row.querySelectorAll('td');
+        cells[1].textContent = info.count;
+        cells[2].textContent = info.score;
+        cells[3].textContent = info.waiting;
+        cells[4].innerHTML = `<span class="signal-badge ${info.signal}">${info.signal}</span>`;
+
+        // Signal dot on feed card
+        const dot = document.getElementById('dot-' + name);
+        dot.style.background = info.signal === 'GREEN' ? 'var(--green)'
+                             : info.signal === 'YELLOW' ? 'var(--yellow)'
+                             : 'var(--red)';
+        dot.style.boxShadow = info.signal === 'GREEN' ? '0 0 8px var(--glow-g)'
+                            : info.signal === 'YELLOW' ? '0 0 8px var(--glow-y)'
+                            : '0 0 8px var(--glow-r)';
+
+        // Feed card border highlight
+        const card = document.getElementById('feed-' + name);
+        card.classList.toggle('active-green', info.signal === 'GREEN');
+
+        // Traffic lights
+        const unit = document.getElementById('light-' + name);
+        unit.querySelectorAll('.bulb').forEach(b => {
+          const c = b.dataset.color;
+          b.className = 'bulb';
+          if (
+            (info.signal === 'RED'    && c === 'red') ||
+            (info.signal === 'YELLOW' && c === 'yellow') ||
+            (info.signal === 'GREEN'  && c === 'green')
+          ) {
+            b.classList.add('on-' + c);
+          }
+        });
+      });
+
+      // Chart
+      tickCount++;
+      chartData.labels.push(tickCount);
+      if (chartData.labels.length > MAX_POINTS) chartData.labels.shift();
+      laneNames.forEach((name, i) => {
+        chartData.datasets[i].data.push(lanes[name].count);
+        if (chartData.datasets[i].data.length > MAX_POINTS) chartData.datasets[i].data.shift();
+      });
+      chart.update();
+    }
+
+    setInterval(poll, 1000);
+    poll();
+  </script>
+</body>
+</html>
