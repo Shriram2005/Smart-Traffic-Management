@@ -6,11 +6,11 @@ services:
     branch: main
   build_command: pip install -r requirements.txt
   run_command: python main.py
-  http_port: 5000
+  http_port: 8080
   health_check:
     http_path: /
   envs:
   - key: FLASK_ENV
     value: production
   - key: FLASK_PORT
-    value: "5000"
+    value: "8080"

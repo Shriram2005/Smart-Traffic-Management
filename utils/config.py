@@ -29,7 +29,7 @@ DETECTION_INTERVAL: float = 1.0  # seconds between detection cycles
 CONFIDENCE_THRESHOLD: float = 0.35  # minimum confidence for detections
 
 # ── Flask ─────────────────────────────────────────────────────────────
-FLASK_PORT: int = int(os.getenv("FLASK_PORT", 5000))
+FLASK_PORT: int = int(os.getenv("PORT", os.getenv("FLASK_PORT", "5000")))
 
 # ── Lane Image Paths ─────────────────────────────────────────────────
 # Map each lane name to the path of its input image.
