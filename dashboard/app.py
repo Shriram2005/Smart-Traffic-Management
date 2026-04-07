@@ -18,7 +18,7 @@ import cv2
 from flask import Flask, Response, jsonify, render_template, request
 from werkzeug.utils import secure_filename
 
-from utils.config import LANE_NAMES, LANE_IMAGES, SAMPLE_DIR
+from utils.config import LANE_NAMES, SAMPLE_DIR, set_lane_image
 
 if TYPE_CHECKING:
     from detection.lane_detector import LaneDetector
@@ -110,7 +110,7 @@ def upload_image(lane_name: str):
         file.save(filepath)
         
         # Update the dictionary in memory so detectors instantly pick it up
-        LANE_IMAGES[lane_name] = filepath
+        set_lane_image(lane_name, filepath)
         return jsonify({"success": True})
     return jsonify({"error": "Unknown error"}), 500
 

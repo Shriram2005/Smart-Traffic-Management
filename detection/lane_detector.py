@@ -19,7 +19,7 @@ from ultralytics import YOLO
 
 from utils.config import (
     CONFIDENCE_THRESHOLD,
-    LANE_IMAGES,
+    get_lane_image,
     VEHICLE_CLASSES,
     YOLO_MODEL,
 )
@@ -79,7 +79,7 @@ class LaneDetector:
         Returns a tuple of (frame, synthetic_boxes). If synthetic_boxes is None,
         the frame is real and should be passed to YOLO.
         """
-        path = LANE_IMAGES.get(self.lane_name)
+        path = get_lane_image(self.lane_name)
         if path and os.path.isfile(path):
             frame = cv2.imread(path)
             if frame is not None:

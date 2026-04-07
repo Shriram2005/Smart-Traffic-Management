@@ -8,7 +8,7 @@ receives GREEN using a score-based algorithm with emergency override.
 from __future__ import annotations
 
 import threading
-import time
+from time import monotonic
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -58,7 +58,7 @@ class SignalController:
         self.emergency_lane: Optional[str] = None
 
         # Internal timing state
-        self._green_start: float = time.time()
+        self._green_start: float = monotonic()
         self._yellow_active: bool = False
         self._yellow_start: float = 0.0
         self._emergency_start: float = 0.0
@@ -92,12 +92,12 @@ class SignalController:
 
             # 3. Handle yellow transition
             if self._yellow_active:
-                if time.time() - self._yellow_start >= YELLOW_DURATION:
+                if monotonic() - self._yellow_start >= YELLOW_DURATION:
                     self._finish_yellow()
                 return  # do nothing else during yellow
 
             # 4. Check if current GREEN has expired
-            if time.time() - self._green_start >= GREEN_DURATION:
+            if monotonic() - self._green_start >= GREEN_DURATION:
                 self._begin_switch()
 
             # 5. Recompute scores
@@ -138,11 +138,11 @@ class SignalController:
         """
         # Check if current emergency has expired
         if self.emergency_active:
-            if time.time() - self._emergency_start >= EMERGENCY_DURATION:
+            if monotonic() - self._emergency_start >= EMERGENCY_DURATION:
                 self.emergency_active = False
                 self.emergency_lane = None
                 self._set_green(self.active_green)
-                self._green_start = time.time()
+                self._green_start = monotonic()
             return True  # still in emergency — skip normal logic
 
         # Look for new emergency
@@ -157,7 +157,7 @@ class SignalController:
         chosen = max(emergency_lanes, key=lambda n: self.lanes[n].vehicle_count)
         self.emergency_active = True
         self.emergency_lane = chosen
-        self._emergency_start = time.time()
+        self._emergency_start = monotonic()
         self._set_green(chosen)
         self.active_green = chosen
         return True
@@ -168,7 +168,7 @@ class SignalController:
         for ls in self.lanes.values():
             ls.signal = "YELLOW"
         self._yellow_active = True
-        self._yellow_start = time.time()
+        self._yellow_start = monotonic()
 
     def _finish_yellow(self) -> None:
         """End the YELLOW phase and select the next GREEN lane."""
@@ -196,7 +196,7 @@ class SignalController:
 
         self.active_green = best.name
         self._set_green(best.name)
-        self._green_start = time.time()
+        self._green_start = monotonic()
 
     def _set_green(self, lane_name: str) -> None:
         """Set *lane_name* to GREEN, everything else to RED."""

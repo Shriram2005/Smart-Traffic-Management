@@ -104,6 +104,7 @@
       overflow: hidden;
       position: relative;
       transition: border-color .3s, box-shadow .3s;
+      aspect-ratio: 4 / 3;
     }
     .feed-card.active-green {
       border-color: var(--green);
@@ -218,7 +219,76 @@
 
     /* ── Responsive ───────────────────────────────────────────────── */
     @media (max-width: 960px) {
-      .dashboard { grid-template-columns: 1fr; }
+      header {
+        padding: 14px 16px;
+      }
+      header h1 {
+        font-size: 1rem;
+      }
+      .dashboard {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding: 16px;
+      }
+      .feeds {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+      }
+      .sidebar {
+        gap: 12px;
+      }
+      .panel {
+        padding: 14px;
+      }
+      .lights-row {
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .chart-wrap {
+        height: 180px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      header {
+        gap: 10px;
+      }
+      header .logo {
+        width: 32px;
+        height: 32px;
+        font-size: 16px;
+      }
+      header .badge {
+        margin-left: auto;
+        font-size: .7rem;
+        padding: 3px 10px;
+      }
+      .dashboard {
+        padding: 12px;
+      }
+      .feeds {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 8px;
+      }
+      .feed-card {
+        aspect-ratio: 1 / 1;
+      }
+      #emergency-banner {
+        padding: 10px 14px;
+        font-size: .85rem;
+      }
+      .feed-card .lane-tag,
+      .feed-card .upload-btn {
+        font-size: .68rem;
+      }
+      .stats-table {
+        font-size: .72rem;
+      }
+      .stats-table th,
+      .stats-table td {
+        padding: 6px 5px;
+      }
     }
   </style>
 </head>

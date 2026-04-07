@@ -6,6 +6,7 @@ without modifying any logic files.
 """
 
 import os
+import threading
 
 # ── Lane Configuration ────────────────────────────────────────────────
 LANE_NAMES: list[str] = ["north", "south", "east", "west"]
@@ -34,6 +35,7 @@ FLASK_PORT: int = int(os.getenv("PORT", os.getenv("FLASK_PORT", "5000")))
 # ── Lane Image Paths ─────────────────────────────────────────────────
 # Map each lane name to the path of its input image.
 # Set a path to None or leave it missing to use synthetic test frames.
+LANE_IMAGE_LOCK = threading.RLock()
 BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAMPLE_DIR: str = os.path.join(BASE_DIR, "sample_inputs")
 
@@ -43,3 +45,13 @@ LANE_IMAGES: dict[str, str | None] = {
     "east":  os.path.join(SAMPLE_DIR, "img3.jpeg"),
     "west":  os.path.join(SAMPLE_DIR, "img3.webp"),
 }
+
+
+def get_lane_image(lane_name: str) -> str | None:
+    with LANE_IMAGE_LOCK:
+        return LANE_IMAGES.get(lane_name)
+
+
+def set_lane_image(lane_name: str, path: str | None) -> None:
+    with LANE_IMAGE_LOCK:
+        LANE_IMAGES[lane_name] = path

@@ -31,7 +31,6 @@ from utils.config import DETECTION_INTERVAL, FLASK_PORT, LANE_NAMES
 
 def detection_loop(
     detector: LaneDetector,
-    controller: SignalController,
     stop_event: threading.Event,
 ) -> None:
     """
@@ -42,17 +41,13 @@ def detection_loop(
     """
     while not stop_event.is_set():
         try:
-            result = detector.detect()
-            # Feed into controller (thread-safe — controller uses a lock)
-            with controller.lock:
-                controller.lanes[result.lane_name].vehicle_count = result.vehicle_count
-                controller.lanes[result.lane_name].emergency_detected = result.emergency_detected
+            detector.detect()
         except Exception as exc:
             print(f"[{detector.lane_name}] detection error: {exc}")
         time.sleep(DETECTION_INTERVAL)
 
 
-def signal_loop(
+def control_loop(
     controller: SignalController,
     detectors: dict[str, LaneDetector],
     stop_event: threading.Event,
@@ -98,7 +93,7 @@ def main() -> None:
     for name, det in detectors.items():
         t = threading.Thread(
             target=detection_loop,
-            args=(det, controller, stop_event),
+            args=(det, stop_event),
             daemon=True,
             name=f"detect-{name}",
         )
@@ -108,7 +103,7 @@ def main() -> None:
 
     # 5. Start signal controller thread
     sig_thread = threading.Thread(
-        target=signal_loop,
+        target=control_loop,
         args=(controller, detectors, stop_event),
         daemon=True,
         name="signal-controller",
