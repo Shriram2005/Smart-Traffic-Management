@@ -30,6 +30,7 @@ class LaneState:
     score: float = 0.0
     signal: str = "RED"          # RED | YELLOW | GREEN
     waiting_cycles: int = 0
+    waiting_since: float = 0.0
     emergency_detected: bool = False
 
 
@@ -63,8 +64,13 @@ class SignalController:
         self._yellow_start: float = 0.0
         self._emergency_start: float = 0.0
 
+        now = monotonic()
+        for ls in self.lanes.values():
+            ls.waiting_since = now
+
         # Start with the first lane green
         self.lanes[self.active_green].signal = "GREEN"
+        self.lanes[self.active_green].waiting_since = 0.0
 
     # ── Public API ────────────────────────────────────────────────────
     def update(
@@ -108,20 +114,26 @@ class SignalController:
         Build the status dict consumed by the ``/status`` endpoint.
         """
         with self.lock:
+            now = monotonic()
             lanes_status = {}
             for name in LANE_NAMES:
                 ls = self.lanes[name]
+                waiting_seconds = self._get_waiting_seconds(ls, now)
                 lanes_status[name] = {
                     "count": ls.vehicle_count,
                     "score": round(ls.score, 1),
                     "signal": ls.signal,
-                    "waiting": ls.waiting_cycles,
+                    "waiting": waiting_seconds,
+                    "waiting_seconds": waiting_seconds,
+                    "waiting_turns": ls.waiting_cycles,
                 }
             return {
                 "lanes": lanes_status,
                 "emergency_active": self.emergency_active,
                 "emergency_lane": self.emergency_lane,
                 "active_green": self.active_green,
+                "phase": self._current_phase(),
+                "phase_remaining_seconds": self._phase_remaining_seconds(now),
             }
 
     # ── Internal helpers ──────────────────────────────────────────────
@@ -143,6 +155,7 @@ class SignalController:
                 self.emergency_lane = None
                 self._set_green(self.active_green)
                 self._green_start = monotonic()
+                return False
             return True  # still in emergency — skip normal logic
 
         # Look for new emergency
@@ -158,15 +171,15 @@ class SignalController:
         self.emergency_active = True
         self.emergency_lane = chosen
         self._emergency_start = monotonic()
+        self._yellow_active = False
         self._set_green(chosen)
         self.active_green = chosen
         return True
 
     def _begin_switch(self) -> None:
         """Start a YELLOW transition before switching GREEN."""
-        # Set all lanes to YELLOW briefly
-        for ls in self.lanes.values():
-            ls.signal = "YELLOW"
+        # Only the outgoing GREEN lane turns YELLOW; others remain RED.
+        self.lanes[self.active_green].signal = "YELLOW"
         self._yellow_active = True
         self._yellow_start = monotonic()
 
@@ -200,5 +213,34 @@ class SignalController:
 
     def _set_green(self, lane_name: str) -> None:
         """Set *lane_name* to GREEN, everything else to RED."""
+        now = monotonic()
         for ls in self.lanes.values():
-            ls.signal = "GREEN" if ls.name == lane_name else "RED"
+            if ls.name == lane_name:
+                ls.signal = "GREEN"
+                ls.waiting_since = 0.0
+            else:
+                if ls.signal != "RED":
+                    ls.waiting_since = now
+                ls.signal = "RED"
+
+    def _get_waiting_seconds(self, lane: LaneState, now: float) -> int:
+        """Return elapsed waiting time in seconds for lanes currently waiting at RED."""
+        if lane.signal != "RED" or lane.waiting_since <= 0:
+            return 0
+        return max(0, int(now - lane.waiting_since))
+
+    def _current_phase(self) -> str:
+        if self.emergency_active:
+            return "EMERGENCY"
+        if self._yellow_active:
+            return "YELLOW"
+        return "GREEN"
+
+    def _phase_remaining_seconds(self, now: float) -> int:
+        if self.emergency_active:
+            remaining = EMERGENCY_DURATION - (now - self._emergency_start)
+        elif self._yellow_active:
+            remaining = YELLOW_DURATION - (now - self._yellow_start)
+        else:
+            remaining = GREEN_DURATION - (now - self._green_start)
+        return max(0, int(remaining))

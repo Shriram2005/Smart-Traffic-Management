@@ -301,6 +301,12 @@
     <span class="badge" id="status-badge">● LIVE</span>
   </header>
 
+  <div style="padding: 8px 28px 0; color: var(--dim); font-size: .82rem;" id="phase-meta">
+    Phase: <strong id="phase-name" style="color: var(--text);">GREEN</strong>
+    · Remaining: <strong id="phase-remaining" style="color: var(--text);">0s</strong>
+    · Active Lane: <strong id="phase-lane" style="color: var(--text);">NORTH</strong>
+  </div>
+
   <!-- ── Emergency banner ───────────────────────────────────────── -->
   <div id="emergency-banner">
     <span class="icon">🚨</span>
@@ -397,7 +403,7 @@
         <h2>Lane Statistics</h2>
         <table class="stats-table">
           <thead>
-            <tr><th>Lane</th><th>Count</th><th>Score</th><th>Wait</th><th>Signal</th></tr>
+            <tr><th>Lane</th><th>Count</th><th>Score</th><th>Wait (s)</th><th>Signal</th></tr>
           </thead>
           <tbody id="stats-body">
             <tr id="row-north"><td>North</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
@@ -469,20 +475,37 @@
     });
 
     let tickCount = 0;
+    let isPolling = false;
 
     // ── Status polling ───────────────────────────────────────────
     async function poll() {
+      if (isPolling) return;
+      isPolling = true;
       try {
         const res = await fetch('/status');
+        if (!res.ok) throw new Error('Status request failed');
         const data = await res.json();
         updateUI(data);
       } catch (e) {
         console.error('Poll error', e);
+      } finally {
+        isPolling = false;
       }
     }
 
     function updateUI(data) {
       const lanes = data.lanes;
+
+      // Top meta
+      const phaseName = data.phase || 'GREEN';
+      const phaseRemaining = Number.isFinite(data.phase_remaining_seconds)
+        ? `${data.phase_remaining_seconds}s`
+        : '0s';
+      const activeLane = (data.active_green || '').toUpperCase();
+      document.getElementById('phase-name').textContent = phaseName;
+      document.getElementById('phase-remaining').textContent = phaseRemaining;
+      document.getElementById('phase-lane').textContent = activeLane;
+      document.getElementById('status-badge').textContent = `● ${phaseName}`;
 
       // Emergency banner
       const banner = document.getElementById('emergency-banner');
@@ -496,13 +519,14 @@
 
       laneNames.forEach(name => {
         const info = lanes[name];
+        if (!info) return;
 
         // Table row
         const row = document.getElementById('row-' + name);
         const cells = row.querySelectorAll('td');
         cells[1].textContent = info.count;
         cells[2].textContent = info.score;
-        cells[3].textContent = info.waiting;
+        cells[3].textContent = info.waiting_seconds ?? info.waiting ?? 0;
         cells[4].innerHTML = `<span class="signal-badge ${info.signal}">${info.signal}</span>`;
 
         // Signal dot on feed card
@@ -538,7 +562,7 @@
       chartData.labels.push(tickCount);
       if (chartData.labels.length > MAX_POINTS) chartData.labels.shift();
       laneNames.forEach((name, i) => {
-        chartData.datasets[i].data.push(lanes[name].count);
+        chartData.datasets[i].data.push((lanes[name] && lanes[name].count) || 0);
         if (chartData.datasets[i].data.length > MAX_POINTS) chartData.datasets[i].data.shift();
       });
       chart.update();
